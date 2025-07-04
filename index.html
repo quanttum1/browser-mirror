@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Window Capture</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #000;
+      color: white;
+      font-family: Arial, sans-serif;
+      cursor: pointer;
+      text-align: center;
+    }
+    video, canvas {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <div id="instructions">Click anywhere to start or select a new window</div>
+  <video id="video" autoplay muted playsinline></video>
+  <canvas id="freezeFrame"></canvas>
+
+  <script>
+    let currentStream = null;
+    let isPaused = false;
+
+    const videoElement = document.getElementById('video');
+    const canvas = document.getElementById('freezeFrame');
+    const instructions = document.getElementById('instructions');
+    const ctx = canvas.getContext('2d');
+
+    async function captureWindow() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: "always" },
+          audio: false
+        });
+
+        currentStream = stream;
+        videoElement.srcObject = stream;
+        videoElement.style.display = 'block';
+        canvas.style.display = 'none';
+        instructions.style.display = 'none';
+
+        isPaused = false;
+
+        stream.getVideoTracks()[0].addEventListener('ended', () => {
+          videoElement.style.display = 'none';
+          canvas.style.display = 'none';
+          instructions.style.display = 'flex';
+        });
+      } catch (err) {
+        console.error("Error: " + err);
+      }
+    }
+
+    function togglePause() {
+      if (!currentStream) return;
+
+      if (!isPaused) {
+        // Freeze: draw current frame to canvas
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+        videoElement.style.display = 'none';
+        canvas.style.display = 'block';
+      } else {
+        // Unfreeze
+        videoElement.style.display = 'block';
+        canvas.style.display = 'none';
+      }
+
+      isPaused = !isPaused;
+    }
+
+    document.body.addEventListener('click', captureWindow);
+
+    document.addEventListener('keydown', (event) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        togglePause();
+      }
+    });
+  </script>
+</body>
+</html>
+
